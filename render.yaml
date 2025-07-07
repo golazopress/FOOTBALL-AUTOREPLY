@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: football-autoreply-bot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python replybot.py
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TELEGRAM_REPLY_BOT_TOKEN
+        sync: false
