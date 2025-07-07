@@ -1,16 +1,25 @@
 import os
+from dotenv import load_dotenv
 import google.generativeai as genai
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
-from dotenv import load_dotenv
+from telegram.ext import (
+    ApplicationBuilder,
+    ContextTypes,
+    MessageHandler,
+    CommandHandler,
+    filters,
+)
 
 load_dotenv()
+telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
+gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-# Load your Gemini API key
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Configure Gemini API
+genai.configure(api_key=gemini_api_key)
+model = genai.GenerativeModel("gemini-1.5-pro-latest")
 
-# Your custom blog prompt
-BLOG_PROMPT = """
+# Your custom writing prompt
+WRITING_PROMPT = """
 From the perspective of a real human who has lived through it.
 Use a conversational tone, personal anecdotes, emotional reflections, and occasional informal language.
 Include natural pauses, varied sentence lengths, and some imperfections or hesitations like real human writing.
@@ -18,29 +27,26 @@ Avoid sounding robotic or overly polished—make it feel raw, passionate, and re
 Don't follow a rigid structure. Prioritize authenticity and relatability.
 """
 
-# Function to generate blog content
+# Handles /start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⚽ Send me a football topic and I'll write a blog for you.")
+
+# Handles incoming messages (topics)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     topic = update.message.text
-    await update.message.reply_text(f"✍️ Generating blog for:\n\n{topic}")
-    
+    full_prompt = f"Write a passionate, human-sounding football blog on this topic:\n\n{topic}\n\n{WRITING_PROMPT}"
+
     try:
-        model = genai.GenerativeModel("gemini-1.5-pro-latest")
-        response = model.generate_content(BLOG_PROMPT + "\n\nTopic: " + topic)
+        response = model.generate_content(full_prompt)
         await update.message.reply_text(response.text)
     except Exception as e:
-        await update.message.reply_text(f"❌ Error generating blog:\n{e}")
+        await update.message.reply_text(f"⚠️ Error generating blog: {e}")
 
-# Start the bot
+# Main app
 def main():
-    telegram_token = os.getenv("TELEGRAM_REPLY_BOT_TOKEN")
-
-    if not telegram_token:
-        raise Exception("TELEGRAM_REPLY_BOT_TOKEN is not set in the environment")
-
     app = ApplicationBuilder().token(telegram_token).build()
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    print("🤖 Auto-reply bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":
